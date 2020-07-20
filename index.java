@@ -24,7 +24,7 @@ float default_infection_chance = 0.2;
 float infection_chance_maximum = 1;
 float chance_of_death = 0.5;
 
-boolean show_infection_radius = true;
+boolean showInfectionRadius = true;
 
 boolean socialDistancingDefault = true;
 
@@ -38,13 +38,11 @@ int num = 50;
 int lastInfected = 0;
 int everyFrame = 100;
 int goingUp = 0;
+
+color arr = color(150, 0, 150);
+color dea = color(150, 150, 0);
 float[] array = new float[40];
-color arr = color(255, 0, 0);
 float[] deadArray = new float[40];
-color dea = color(120);
-boolean same = false;
-boolean started = false;
-int startFrame = 0;
 
 // slider techincalities
 int slider_length_y = 40;
@@ -93,15 +91,14 @@ void setup() {
   communities = new Community[num_communities];
 
   for(int i = 0; i < communities.length; i++){
-    communities[i] = new Community((int)(((communitySize*1.5)*i) + community_offset), (int) 
-                                        (((communitySize*1.5)*i + communitySize) + community_offset),community_offset,communitySize,default_infection_chance,socialDistancingDefault);
+    communities[i] = new Community((int)(((communitySize*1.5)*i)+community_offset),(int)(((communitySize*1.5)*i+communitySize)+community_offset),community_offset,communitySize,default_infection_chance,socialDistancingDefault);
   }
 
   infectionChances = new Slider[num_communities];
 
   socialDistancingToggles = new toggleButton[num_communities];
 
-  startButton = new toggleButton("Start Simulation",false,40,25,true,0);
+  startButton = new toggleButton("Start Simulation",false,40,25,false,0);
   panningToggle = new toggleButton("Panning",false,40,community_offset * 3 + communitySize,true,0);
 
   for (int i = 0; i < communities.length; i++) {
@@ -123,21 +120,23 @@ void setup() {
   }
 
   infectionRadius = new Slider("Radius of Infection", infection_radius, 100, 
-                               rightmost_edge-100,lowest_edge+slider_offset_y,infection_radius_maximum);
+                               rightmost_edge-100,lowest_edge+slider_offset_y*6,infection_radius_maximum);
 
 }
 
+// randomly chooses a person and a community to travel to
+
+
 // this is called every frame
 void draw() { 
-  background(255,239,213);
+  background(177,162,150);
 
   if(!startButton.value){
     startButton.update();
   }
   
-  panningToggle.update();
-
   // zooming and panning
+  panningToggle.update();
   scale(zoom);
   translate(xpt-xzt,ypt-yzt);
 
@@ -147,10 +146,6 @@ void draw() {
   stroke(0);
   
   if(startButton.value) {
-    if(!started) {
-      startFrame = frameCount;
-      started = true;
-    }
     int total_currently_infected = 0;
     int total_currently_dead = 0;
 
@@ -172,39 +167,32 @@ void draw() {
     
     //graph stuff
     noFill();
-    line(600, 940, 600, 1245);
-    line(600,1245,1100,1245);
+    line(610, 940, 610, 1245);
+    line(610,1245,1200,1245);
     fill(1,1,1);
     text("300", 550, 950);
     text("0", 575, 1250);
-    text("current", 1100, 1275);
+    text("current", 1275, 1275);
     text("-60", 590, 1275);
     text("time (sec)", 825, 1300);
-    //if((frameCount - startFrame) > 2000){
-    //  if((array[39] - array[30] == 0) && (deadArray[39] - deadArray[30] == 0)){
-    //    same = true;
-    //  }
-    //}
-    if(frameCount % everyFrame == 0 && !same){
+    if(frameCount % everyFrame == 0){
       for (int i=0; i<array.length-1; i++) {
         array[i] = array[i+1];
         deadArray[i] = deadArray[i+1];
       }
-      float newValue = (float) total_currently_infected;
-      float newValueDead = (float) total_currently_dead;
+      float newValue = (float)total_currently_infected;
+      float newValueDead = (float)total_currently_dead;
 
       array[array.length-1] = newValue;
       deadArray[array.length-1] = newValueDead;
     }
-    //if(same){
-      //text("Graph is now constant, Graph updates have ceased ", 700, 900);
-    //}
     graphing(array, arr);
     graphing(deadArray, dea);
     
     fill(0,0,0);
-    text("Current Infected: " + (int) total_currently_infected, 800, 850+500);
-    text("People Dead: " + (int) total_currently_dead, 830, 850+550);
+    //text("Current infected:        —  ", (width/2)-350, (height/2)-array[array.length-1]+500); 
+    text("Current Infected: " + (int)total_currently_infected, 800, 850+500);
+    text("People Dead " + (int)total_currently_dead, 800, 850+550);
   }
 
   // sliders and toggle buttons
@@ -396,7 +384,6 @@ class Community {
     collisionCheck();
     // draw community border
     noFill();
-    stroke(139,69,19);
 
     rect(community_left, community_bottom, community_right - community_left, community_top - community_bottom);
 
@@ -406,7 +393,6 @@ class Community {
       ellipse(p.x, p.y, center_radius, center_radius);
     }
 
-    stroke(1);
     num_currently_infected = 0;
     for (int i = 0; i < particles.size(); i ++) {
       particles.get(i).nextFrame();
@@ -495,7 +481,7 @@ class Particle {
     p.num_infected = 0;
     num_infected++;
   }
-
+  
   void randomMove() {
     if(random(0, 1) > 0.02) return;
     
@@ -525,13 +511,11 @@ class Particle {
     // make sure people don't gain too much velocity
     vel.limit(2);
   }
-  
   void goTo() {
     PVector diff = PVector.sub(target_location, pos);
-    diff.normalize(); diff.mult(3);
+    diff.normalize(); diff.mult(0.05);
     vel.add(diff);
   }
-
   // people go to parties
   void party() {
     boolean forth = target_location == target_center;
@@ -565,6 +549,9 @@ class Particle {
 
   }
 
+  // people move around randomly
+
+
   // things related to changes to the position, velocity or acceleration of the particles
   void updatePosition() {
     // people move around randomly
@@ -587,12 +574,10 @@ class Particle {
       updatePosition();
     }
     if (state == 1) {
-      if(show_infection_radius) {
-        stroke(199,21,133);
+      if(showInfectionRadius) {
         fill(0, 0, 0, 0);
         ellipse(pos.x, pos.y, infection_radius, infection_radius);
       }
-      stroke(1);
       fill(255, 0, 0);
       // there's a chance the the person will self isolate
       if (random(0, 1) < 0.01) {
@@ -628,6 +613,60 @@ class Particle {
       fill(255);
     }
     ellipse(pos.x, pos.y, 7, 7);
+  }
+}
+
+class Slider {
+  private float value;
+  int leftBound, rightBound, topBound;
+  float currentPos;
+  float maximum;
+  String thing_controlled;
+
+  public Slider(String type, float value, int left, int right, int top, float max){
+    this.value = value;
+    leftBound = left + 20;
+    rightBound = right - 20;
+    topBound = top;
+    currentPos = (value/(max/(rightBound-leftBound)))+leftBound;
+    maximum = max;
+    thing_controlled = type;
+  }
+
+  public float get(){
+    return value;
+  }
+
+  void update(){
+    stroke(0,0,255);
+    strokeWeight(3);
+    fill(0,0,0);
+    textFont(createFont("Times New Roman",20));
+
+    //baseline
+    line(leftBound,topBound+slider_offset_y,rightBound,topBound+slider_offset_y);
+
+    //dynamic line
+    float sliderTop = topBound + slider_offset_y - slider_length_y/2;
+    float sliderBottom = topBound + slider_offset_y + slider_length_y/2;
+
+    boolean mouseInYRange = mouseY >= sliderTop + ypt - yzt && mouseY <= sliderBottom + ypt - yzt;
+    boolean mouseInXRange = mouseX >= leftBound - 25 + xpt - xzt && mouseX <= rightBound + 25 + xpt - xzt;
+
+    if(mouseInYRange && mouseInXRange && mousePressed && !panningToggle.value){
+      if(mouseX > rightBound + xpt - xzt){
+        mouseX = (int) (rightBound + xpt - xzt);
+      }
+      if(mouseX < leftBound + xpt - xzt){
+        mouseX = (int) (leftBound + xpt - xzt);
+      }
+      currentPos = mouseX - (xpt - xzt);
+    }
+
+    line(currentPos,sliderTop,currentPos,sliderBottom);
+
+    value = (currentPos-leftBound) * maximum/(rightBound - leftBound);
+    text(thing_controlled+": "+value,leftBound,sliderTop - 10);
   }
 }
 
@@ -705,7 +744,6 @@ class toggleButton{
     text(thingToggled + ": " + on, button_left + button_size_x / 2, button_top + button_size_y / 1.4);
   }
 }
-
 void graphing(float[] graphingArray, color graphColor) {
   int num = 50;
   int everyFrame = 100;
@@ -721,7 +759,7 @@ void graphing(float[] graphingArray, color graphColor) {
       if(i != 0){
         strokeWeight(1);
         if(i != 0 && graphingArray[i] - graphingArray[i-1] > 5){
-          if(goingUp != 1) {
+          if(goingUp != 1){
             curveTightness(2);
             goingUp = 1;
           }
@@ -756,100 +794,3 @@ void graphing(float[] graphingArray, color graphColor) {
         }
   }
 }
-
-class Slider {
-  private float value;
-  int leftBound, rightBound, topBound;
-  float currentPos;
-  float maximum;
-  String thing_controlled;
-
-  public Slider(String type, float value, int left, int right, int top, float max){
-    this.value = value;
-    leftBound = left + 20;
-    rightBound = right - 20;
-    topBound = top;
-    currentPos = (value/(max/(rightBound-leftBound)))+leftBound;
-    maximum = max;
-    thing_controlled = type;
-  }
-
-  public float get(){
-    return value;
-  }
-
-  void update(){
-    stroke(0,0,255);
-    strokeWeight(3);
-    fill(0,0,0);
-    textFont(createFont("Times New Roman",20));
-
-    //baseline
-    line(leftBound,topBound+slider_offset_y,rightBound,topBound+slider_offset_y);
-
-    //dynamic line
-    float sliderTop = topBound + slider_offset_y - slider_length_y/2;
-    float sliderBottom = topBound + slider_offset_y + slider_length_y/2;
-
-    boolean mouseInYRange = mouseY >= sliderTop + ypt - yzt && mouseY <= sliderBottom + ypt - yzt;
-    boolean mouseInXRange = mouseX >= leftBound - 25 + xpt - xzt && mouseX <= rightBound + 25 + xpt - xzt;
-
-    if(mouseInYRange && mouseInXRange && mousePressed && !panningToggle.value){
-      if(mouseX > rightBound + xpt - xzt){
-        mouseX = (int) (rightBound + xpt - xzt);
-      }
-      if(mouseX < leftBound + xpt - xzt){
-        mouseX = (int) (leftBound + xpt - xzt);
-      }
-      currentPos = mouseX - (xpt - xzt);
-    }
-
-    line(currentPos,sliderTop,currentPos,sliderBottom);
-
-    value = (currentPos-leftBound) * maximum/(rightBound - leftBound);
-    text(thing_controlled+": "+value,leftBound,sliderTop - 10);
-  }
-}
-
-
-// class VerticalSlider extends Slider{
-//   int topBound;
-//   int bottomBound;
-//   int leftBound;
-//   public verticalSlider(String type, float value, int left, int right, int top, float max){
-//     super(type,value,left,right,top,max);
-//   }
-
-//   @Override
-//   void update(){
-//     stroke(0,0,255);
-//     strokeWeight(3);
-//     fill(0,0,0);
-//     textFont(createFont("Times New Roman",20));
-
-//     //baseline
-//     line(leftBound,topBound+slider_offset_y,rightBound,topBound+slider_offset_y);
-
-//     //dynamic line
-//     float sliderTop = topBound + slider_offset_y - slider_length_y/2;
-//     float sliderBottom = topBound + slider_offset_y + slider_length_y/2;
-
-//     boolean mouseInYRange = mouseY >= sliderTop + ypt - yzt && mouseY <= sliderBottom + ypt - yzt;
-//     boolean mouseInXRange = mouseX >= leftBound - 25 + xpt - xzt && mouseX <= rightBound + 25 + xpt - xzt;
-
-//     if(mouseInYRange && mouseInXRange && mousePressed && !panningToggle.value){
-//       if(mouseX > rightBound + xpt - xzt){
-//         mouseX = (int) (rightBound + xpt - xzt);
-//       }
-//       if(mouseX < leftBound + xpt - xzt){
-//         mouseX = (int) (leftBound + xpt - xzt);
-//       }
-//       currentPos = mouseX - (xpt - xzt);
-//     }
-
-//     line(currentPos,sliderTop,currentPos,sliderBottom);
-
-//     value = (currentPos-leftBound) * maximum/(rightBound - leftBound);
-//     text(thing_controlled+": "+value,leftBound,sliderTop - 10);
-//   }
-// }
