@@ -3,7 +3,7 @@ import java.util.*;
 final int frame_rate = 60;
 
 // number of communities
-int num_communities = 1;
+int num_communities = 2;
 
 // confine_radius: the radius that particles have to stay within during quarantine
 // flocking_dist: distance two particles have to be within to trigger flocking
@@ -24,7 +24,7 @@ float default_infection_chance = 0.2;
 float infection_chance_maximum = 1;
 float chance_of_death = 0.5;
 
-boolean showInfectionRadius = true;
+boolean show_infection_radius = true;
 
 boolean socialDistancingDefault = true;
 
@@ -38,11 +38,13 @@ int num = 50;
 int lastInfected = 0;
 int everyFrame = 100;
 int goingUp = 0;
-
-color arr = color(150, 0, 150);
-color dea = color(150, 150, 0);
 float[] array = new float[40];
+color arr = color(255, 0, 0);
 float[] deadArray = new float[40];
+color dea = color(120);
+boolean same = false;
+boolean started = false;
+int startFrame = 0;
 
 // slider techincalities
 int slider_length_y = 40;
@@ -87,18 +89,17 @@ void setup() {
   my=mx*height/width;
   ratio=mx/my;
 
-  
   communities = new Community[num_communities];
 
   for(int i = 0; i < communities.length; i++){
-    communities[i] = new Community((int)(((communitySize*1.5)*i)+community_offset),(int)(((communitySize*1.5)*i+communitySize)+community_offset),community_offset,communitySize,default_infection_chance,socialDistancingDefault);
+    communities[i] = new Community((int)(((communitySize*1.5)*i) + community_offset), (int)(((communitySize*1.5)*i + communitySize) + community_offset),community_offset,communitySize,default_infection_chance,socialDistancingDefault);
   }
 
   infectionChances = new Slider[num_communities];
 
   socialDistancingToggles = new toggleButton[num_communities];
 
-  startButton = new toggleButton("Start Simulation",false,40,25,false,0);
+  startButton = new toggleButton("Start Simulation",false,40,25,true,0);
   panningToggle = new toggleButton("Panning",false,40,community_offset * 3 + communitySize,true,0);
 
   for (int i = 0; i < communities.length; i++) {
@@ -120,23 +121,22 @@ void setup() {
   }
 
   infectionRadius = new Slider("Radius of Infection", infection_radius, 100, 
-                               rightmost_edge-100,lowest_edge+slider_offset_y*6,infection_radius_maximum);
+                               rightmost_edge-100,lowest_edge+slider_offset_y,infection_radius_maximum);
 
 }
-
-// randomly chooses a person and a community to travel to
 
 
 // this is called every frame
 void draw() { 
-  background(177,162,150);
+  background(255,239,213);
 
   if(!startButton.value){
     startButton.update();
   }
   
-  // zooming and panning
   panningToggle.update();
+
+  // zooming and panning
   scale(zoom);
   translate(xpt-xzt,ypt-yzt);
 
@@ -146,6 +146,10 @@ void draw() {
   stroke(0);
   
   if(startButton.value) {
+    if(!started) {
+      startFrame = frameCount;
+      started = true;
+    }
     int total_currently_infected = 0;
     int total_currently_dead = 0;
 
@@ -167,32 +171,39 @@ void draw() {
     
     //graph stuff
     noFill();
-    line(610, 940, 610, 1245);
-    line(610,1245,1200,1245);
+    line(600, 940, 600, 1245);
+    line(600,1245,1100,1245);
     fill(1,1,1);
     text("300", 550, 950);
     text("0", 575, 1250);
-    text("current", 1275, 1275);
+    text("current", 1100, 1275);
     text("-60", 590, 1275);
     text("time (sec)", 825, 1300);
-    if(frameCount % everyFrame == 0){
+    //if((frameCount - startFrame) > 2000){
+    //  if((array[39] - array[30] == 0) && (deadArray[39] - deadArray[30] == 0)){
+    //    same = true;
+    //  }
+    //}
+    if(frameCount % everyFrame == 0 && !same){
       for (int i=0; i<array.length-1; i++) {
         array[i] = array[i+1];
         deadArray[i] = deadArray[i+1];
       }
-      float newValue = (float)total_currently_infected;
-      float newValueDead = (float)total_currently_dead;
+      float newValue = (float) total_currently_infected;
+      float newValueDead = (float) total_currently_dead;
 
       array[array.length-1] = newValue;
       deadArray[array.length-1] = newValueDead;
     }
+    //if(same){
+      //text("Graph is now constant, Graph updates have ceased ", 700, 900);
+    //}
     graphing(array, arr);
     graphing(deadArray, dea);
     
     fill(0,0,0);
-    //text("Current infected:        —  ", (width/2)-350, (height/2)-array[array.length-1]+500); 
-    text("Current Infected: " + (int)total_currently_infected, 800, 850+500);
-    text("People Dead " + (int)total_currently_dead, 800, 850+550);
+    text("Current Infected: " + (int) total_currently_infected, 800, 850+500);
+    text("People Dead: " + (int) total_currently_dead, 830, 850+550);
   }
 
   // sliders and toggle buttons
@@ -205,6 +216,30 @@ void draw() {
     communities[i].infection_chance = infectionChances[i].get();
     communities[i].socialDistancing = socialDistancingToggles[i].value;
   }
+}
+
+// accepts some points (x, y) and outputs the quadratic function 
+float[] quadRegression(float[] x, float[] y) {
+	n = x.length;
+	float Ex = 0, Ey = 0, Ex2 = 0, Ex3 = 0, Ex4 = 0, Exy = 0, Ex2y = 0;
+	for (int i = 0; i < n; i ++) {
+		Ex += x[i];
+		Ey += y[i];
+		Ex2 += x[i] * x[i];
+		Ex3 += Math.pow(x[i], 3);
+		Ex4 += Math.pow(x[i], 4);
+		Exy += x[i] * y[i];
+		Ex2y += x[i] * x[i] * y[i];
+	}
+	float Exx = Ex2 - Ex * Ex / n;
+	float Exy = Exy - Ex * Ey / n;
+	float Exx2 = Ex3 - Ex2 * Ex / n;
+	float Ex2y = Ex2y - Ex2 * Ey / n;
+	float Ex2x2 = Ex4 - Ex2 * Ex2 / n;
+	float a = (Ex2y * Exx - Exy * Exx2) / (Exx * Ex2x2 - Exx2 * Exx2);
+	float b = (Exy * Ex2x2 - Ex2y * Exx2) / (Exx * Ex2x2 - Exx2 * Exx2);
+	float c = Ey / n - b * Ex / n - a * Ex2 / n;
+	return new float[] {a, b, c};
 }
 
 // handling panning 
@@ -297,7 +332,7 @@ class Community {
     // the difference vector between the 2 particles
     PVector diff = PVector.sub(particles.get(i).pos, particles.get(j).pos);
     // scale the vector so the attraction force is the same every time
-    diff.normalize(); diff.div(10);
+    diff.normalize(); diff.div(2);
 
     // give particle i a little push away from particle j
     particles.get(i).applyForce(diff);
@@ -328,7 +363,7 @@ class Community {
         Particle p2 = particles.get(j);
         // distance between person i and j
         float dis = p1.pos.dist(p2.pos);
-        // social distance
+        // social distance (not perfect since irl it isn't strictly enforced)
         if (socialDistancing && dis < particle_radius * 2 + repulsion_dist) {
           socialDistance(i, j);
         }
@@ -384,6 +419,7 @@ class Community {
     collisionCheck();
     // draw community border
     noFill();
+    stroke(139,69,19);
 
     rect(community_left, community_bottom, community_right - community_left, community_top - community_bottom);
 
@@ -393,6 +429,7 @@ class Community {
       ellipse(p.x, p.y, center_radius, center_radius);
     }
 
+    stroke(1);
     num_currently_infected = 0;
     for (int i = 0; i < particles.size(); i ++) {
       particles.get(i).nextFrame();
@@ -416,11 +453,6 @@ class Community {
            particles.get(i).community = second;
            second.particles.add(particles.get(i));
            particles.get(i).recent_infect_fails.clear();
-           
-           if (particles.get(i).partier) {
-             particles.get(i).selectCenter();
-           }
-           
            particles.remove(i);
            i--;
         }
@@ -481,7 +513,7 @@ class Particle {
     p.num_infected = 0;
     num_infected++;
   }
-  
+
   void randomMove() {
     if(random(0, 1) > 0.02) return;
     
@@ -511,18 +543,20 @@ class Particle {
     // make sure people don't gain too much velocity
     vel.limit(2);
   }
-  void goTo() {
+  
+  void goTo(float speed) {
     PVector diff = PVector.sub(target_location, pos);
-    diff.normalize(); diff.mult(0.05);
+    diff.normalize(); diff.mult(speed);
     vel.add(diff);
   }
+
   // people go to parties
   void party() {
     boolean forth = target_location == target_center;
     // people gather at a central location like a party
     if (forth && pos.dist(target_center) < 5) target_location = init_pos;
     else if (!forth && pos.dist(init_pos) < 5) target_location = target_center;
-    goTo();
+    goTo(3);
   }
 
   void bounds() {
@@ -549,19 +583,19 @@ class Particle {
 
   }
 
-  // people move around randomly
-
-
   // things related to changes to the position, velocity or acceleration of the particles
   void updatePosition() {
     // people move around randomly
-    randomMove();
+    if(!gatherer && !partier) {
+      randomMove();
+    }
+    
     // if (random(0, 1) < 0.0001) println(vel);
     slowDown();
     if (partier) {
       party();
     }
-    if (traveller) goTo();
+    if (traveller) goTo(0.05);
     vel.add(acc);
     pos.add(vel);
     acc.mult(0);
@@ -574,10 +608,12 @@ class Particle {
       updatePosition();
     }
     if (state == 1) {
-      if(showInfectionRadius) {
+      if(show_infection_radius) {
+        stroke(199,21,133);
         fill(0, 0, 0, 0);
         ellipse(pos.x, pos.y, infection_radius, infection_radius);
       }
+      stroke(1);
       fill(255, 0, 0);
       // there's a chance the the person will self isolate
       if (random(0, 1) < 0.01) {
@@ -613,60 +649,6 @@ class Particle {
       fill(255);
     }
     ellipse(pos.x, pos.y, 7, 7);
-  }
-}
-
-class Slider {
-  private float value;
-  int leftBound, rightBound, topBound;
-  float currentPos;
-  float maximum;
-  String thing_controlled;
-
-  public Slider(String type, float value, int left, int right, int top, float max){
-    this.value = value;
-    leftBound = left + 20;
-    rightBound = right - 20;
-    topBound = top;
-    currentPos = (value/(max/(rightBound-leftBound)))+leftBound;
-    maximum = max;
-    thing_controlled = type;
-  }
-
-  public float get(){
-    return value;
-  }
-
-  void update(){
-    stroke(0,0,255);
-    strokeWeight(3);
-    fill(0,0,0);
-    textFont(createFont("Times New Roman",20));
-
-    //baseline
-    line(leftBound,topBound+slider_offset_y,rightBound,topBound+slider_offset_y);
-
-    //dynamic line
-    float sliderTop = topBound + slider_offset_y - slider_length_y/2;
-    float sliderBottom = topBound + slider_offset_y + slider_length_y/2;
-
-    boolean mouseInYRange = mouseY >= sliderTop + ypt - yzt && mouseY <= sliderBottom + ypt - yzt;
-    boolean mouseInXRange = mouseX >= leftBound - 25 + xpt - xzt && mouseX <= rightBound + 25 + xpt - xzt;
-
-    if(mouseInYRange && mouseInXRange && mousePressed && !panningToggle.value){
-      if(mouseX > rightBound + xpt - xzt){
-        mouseX = (int) (rightBound + xpt - xzt);
-      }
-      if(mouseX < leftBound + xpt - xzt){
-        mouseX = (int) (leftBound + xpt - xzt);
-      }
-      currentPos = mouseX - (xpt - xzt);
-    }
-
-    line(currentPos,sliderTop,currentPos,sliderBottom);
-
-    value = (currentPos-leftBound) * maximum/(rightBound - leftBound);
-    text(thing_controlled+": "+value,leftBound,sliderTop - 10);
   }
 }
 
@@ -744,6 +726,7 @@ class toggleButton{
     text(thingToggled + ": " + on, button_left + button_size_x / 2, button_top + button_size_y / 1.4);
   }
 }
+
 void graphing(float[] graphingArray, color graphColor) {
   int num = 50;
   int everyFrame = 100;
@@ -759,7 +742,7 @@ void graphing(float[] graphingArray, color graphColor) {
       if(i != 0){
         strokeWeight(1);
         if(i != 0 && graphingArray[i] - graphingArray[i-1] > 5){
-          if(goingUp != 1){
+          if(goingUp != 1) {
             curveTightness(2);
             goingUp = 1;
           }
@@ -794,3 +777,97 @@ void graphing(float[] graphingArray, color graphColor) {
         }
   }
 }
+
+class Slider {
+  private float value;
+  int leftBound, rightBound, topBound;
+  float currentPos;
+  float maximum;
+  String thing_controlled;
+
+  public Slider(String type, float value, int left, int right, int top, float max){
+    this.value = value;
+    leftBound = left + 20;
+    rightBound = right - 20;
+    topBound = top;
+    currentPos = (value/(max/(rightBound-leftBound)))+leftBound;
+    maximum = max;
+    thing_controlled = type;
+  }
+
+  public float get() {
+    return value;
+  }
+
+  void update(){
+    stroke(0,0,255);
+    strokeWeight(3);
+    fill(0,0,0);
+    textFont(createFont("Times New Roman",20));
+
+    //baseline
+    line(leftBound,topBound+slider_offset_y,rightBound,topBound+slider_offset_y);
+
+    //dynamic line
+    float sliderTop = topBound + slider_offset_y - slider_length_y/2;
+    float sliderBottom = topBound + slider_offset_y + slider_length_y/2;
+
+    boolean mouseInYRange = mouseY >= sliderTop + ypt - yzt && mouseY <= sliderBottom + ypt - yzt;
+    boolean mouseInXRange = mouseX >= leftBound - 25 + xpt - xzt && mouseX <= rightBound + 25 + xpt - xzt;
+
+    if(mouseInYRange && mouseInXRange && mousePressed && !panningToggle.value){
+      if(mouseX > rightBound + xpt - xzt){
+        mouseX = (int) (rightBound + xpt - xzt);
+      }
+      if(mouseX < leftBound + xpt - xzt){
+        mouseX = (int) (leftBound + xpt - xzt);
+      }
+      currentPos = mouseX - (xpt - xzt);
+    }
+
+    line(currentPos,sliderTop,currentPos,sliderBottom);
+
+    value = (currentPos-leftBound) * maximum/(rightBound - leftBound);
+    text(thing_controlled+": "+value,leftBound,sliderTop - 10);
+  }
+}
+
+/*
+class VerticalSlider extends Slider{
+   public verticalSlider(String type, float value, int left, int right, int top, float max){
+     super(type,value,left,right,top,max);
+  }
+
+   @Override
+   void update(){
+     stroke(0,0,255);
+     strokeWeight(3);
+     fill(0,0,0);
+    textFont(createFont("Times New Roman",20));
+
+    //baseline
+     line(topBound,leftBound,topBound,rightBound);
+
+    //dynamic line
+    float sliderTop = topBound + slider_offset_y + slider_length_y/2;
+    float sliderBottom = topBound + slider_offset_y - slider_length_y/2;
+
+    boolean mouseInYRange = mouseY >= sliderTop + ypt - yzt && mouseY <= sliderBottom + ypt - yzt;
+    boolean mouseInXRange = mouseX >= leftBound - 25 + xpt - xzt && mouseX <= rightBound + 25 + xpt - xzt;
+
+    if(mouseInYRange && mouseInXRange && mousePressed && !panningToggle.value){
+      if(mouseY > rightBound + ypt - yzt){
+         mouseY = (int) (rightBound + ypt - yzt);
+      }
+       if(mouseY < leftBound + ypt - yzt){
+         mouseY = (int) (leftBound + ypt - yzt);
+       }
+       currentPos = mouseY - (ypt - yzt);
+    }
+
+     line(sliderBottom,currentPos,sliderTop,currentPos);
+     value = (currentPos-leftBound) * maximum/(rightBound - leftBound);
+     text(thing_controlled+": "+value,leftBound,sliderTop - 10);
+  }
+}
+*/
